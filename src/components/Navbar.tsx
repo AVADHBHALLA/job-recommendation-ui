@@ -25,6 +25,14 @@ const Navbar = () => {
                         Jobs
                     </Link>
 
+                    <Link className="nav-link" to="/create-job">
+                        Create Job
+                    </Link>
+
+                    <Link className="nav-link" to="/preferences">
+                        Preferences
+                    </Link>
+
                     <Link className="nav-link" to="/recommendations">
                         Recommendations
                     </Link>
