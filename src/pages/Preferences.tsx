@@ -1,311 +1,147 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useFetch from "../hooks/useFetch";
+import useForm from "../hooks/useForm";
 import { getAllUsers, updateUser } from "../services/userService";
-import type { User } from "../types/User";
+import FormField from "../components/FormField";
+import LoadingSpinner from "../components/LoadingSpinner";
+
+const initial = {
+    skills: "", experience: "", location: "", company: "",
+    minSalary: "", maxSalary: "", workSetup: "REMOTE", employmentType: "FULL_TIME",
+};
+
+const ic = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none transition focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
 
 const Preferences = () => {
-
-    const [users, setUsers] = useState<User[]>([]);
+    const { data: users, loading: usersLoading } = useFetch(getAllUsers);
     const [selectedUserId, setSelectedUserId] = useState("");
-
-    const [skills, setSkills] = useState("");
-    const [experience, setExperience] = useState("");
-
-    const [location, setLocation] = useState("");
-    const [company, setCompany] = useState("");
-
-    const [minSalary, setMinSalary] = useState("");
-    const [maxSalary, setMaxSalary] = useState("");
-
-    const [workSetup, setWorkSetup] = useState("REMOTE");
-    const [employmentType, setEmploymentType] = useState("FULL_TIME");
-
-    useEffect(() => {
-        const loadUsers = async () => {
-            try {
-                const data = await getAllUsers();
-                setUsers(data);
-            } catch (error) {
-                console.error(error);
-            }
-        };
-        loadUsers();
-    }, []);
-
-
+    const { values, handleChange, reset } = useForm(initial);
+    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
     const handleSave = async () => {
-
-        const selectedUser = users.find(
-            user => user.id === selectedUserId
-        );
-
-        if (!selectedUser) {
-            alert("Select User");
-            return;
-        }
+        const selectedUser = users?.find((u) => u.id === selectedUserId);
+        if (!selectedUser) return;
 
         const payload = {
             name: selectedUser.name,
             email: selectedUser.email,
             education: selectedUser.education,
-            emailServiceEnabled:
-            selectedUser.emailServiceEnabled,
-
+            emailServiceEnabled: selectedUser.emailServiceEnabled,
             jobPreferenceFilter: {
                 filters: [
-                    {
-                        field: "skills",
-                        op: "in",
-                        value: skills
-                            .split(",")
-                            .map(skill => skill.trim())
-                    },
-                    {
-                        field: "experience",
-                        op: "in",
-                        value: [experience]
-                    },
-                    {
-                        field: "location",
-                        op: "notIn",
-                        value: [location]
-                    },
-                    {
-                        field: "company",
-                        op: "notIn",
-                        value: [company]
-                    },
-                    {
-                        field: "salary",
-                        op: "between",
-                        value: [minSalary, maxSalary]
-                    },
-                    {
-                        field: "workSetup",
-                        op: "in",
-                        value: [workSetup]
-                    },
-                    {
-                        field: "employmentType",
-                        op: "in",
-                        value: [employmentType]
-                    }
-                ]
-            }
+                    { field: "skills",         op: "in" as const,      value: values.skills.split(",").map(s => s.trim()).filter(Boolean) },
+                    { field: "experience",     op: "in" as const,      value: [values.experience] },
+                    { field: "location",       op: "notIn" as const,   value: [values.location] },
+                    { field: "company",        op: "notIn" as const,   value: [values.company] },
+                    { field: "salary",         op: "between" as const, value: [values.minSalary, values.maxSalary] },
+                    { field: "workSetup",      op: "in" as const,      value: [values.workSetup] },
+                    { field: "employmentType", op: "in" as const,      value: [values.employmentType] },
+                ],
+            },
         };
 
+        setStatus("loading");
         try {
-
-            await updateUser(
-                selectedUserId,
-                payload
-            );
-
-            alert("Preferences Saved");
-
-        } catch (error) {
-
-            console.error(error);
-            alert("Failed to save preferences");
-
+            await updateUser(selectedUserId, payload);
+            setStatus("success");
+        } catch {
+            setStatus("error");
         }
     };
 
     return (
-        <div className="container mt-4">
-
-            <h2>User Preferences</h2>
-
-            <div className="mb-3">
-
-                <label>Select User</label>
-
-                <select
-                    className="form-control"
-                    value={selectedUserId}
-                    onChange={(e) =>
-                        setSelectedUserId(e.target.value)
-                    }
-                >
-
-                    <option value="">
-                        Select User
-                    </option>
-
-                    {users.map(user => (
-
-                        <option
-                            key={user.id}
-                            value={user.id}
-                        >
-                            {user.name}
-                        </option>
-
-                    ))}
-
-                </select>
-
+        <div className="max-w-2xl mx-auto px-6 py-10">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-slate-800">User Preferences</h1>
+                <p className="text-slate-500 mt-1">Set job filters to improve recommendations</p>
             </div>
 
-            <div className="mb-3">
+            {status === "success" && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 border border-green-200 text-sm">
+                    ✅ Preferences saved!
+                </div>
+            )}
+            {status === "error" && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm">
+                    ❌ Failed to save. Try again.
+                </div>
+            )}
 
-                <label>
-                    Skills (comma separated)
-                </label>
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                {usersLoading ? <LoadingSpinner /> : (
+                    <>
+                        <FormField label="Select User" required>
+                            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className={ic}>
+                                <option value="">— Choose a user —</option>
+                                {users?.map((u) => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </FormField>
 
-                <input
-                    className="form-control"
-                    value={skills}
-                    onChange={(e) =>
-                        setSkills(e.target.value)
-                    }
-                />
+                        <hr className="border-slate-100 my-5" />
 
+                        <FormField label="Preferred Skills" hint="Comma-separated e.g. React, Node.js">
+                            <input name="skills" value={values.skills} onChange={handleChange} placeholder="React, TypeScript" className={ic} />
+                        </FormField>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField label="Work Setup">
+                                <select name="workSetup" value={values.workSetup} onChange={handleChange} className={ic}>
+                                    <option value="REMOTE">Remote</option>
+                                    <option value="HYBRID">Hybrid</option>
+                                    <option value="ONSITE">Onsite</option>
+                                </select>
+                            </FormField>
+                            <FormField label="Employment Type">
+                                <select name="employmentType" value={values.employmentType} onChange={handleChange} className={ic}>
+                                    <option value="FULL_TIME">Full Time</option>
+                                    <option value="PART_TIME">Part Time</option>
+                                    <option value="INTERN">Intern</option>
+                                    <option value="CONTRACT">Contract</option>
+                                    <option value="FREELANCE">Freelance</option>
+                                </select>
+                            </FormField>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField label="Min Salary (₹)">
+                                <input name="minSalary" value={values.minSalary} onChange={handleChange} placeholder="500000" className={ic} />
+                            </FormField>
+                            <FormField label="Max Salary (₹)">
+                                <input name="maxSalary" value={values.maxSalary} onChange={handleChange} placeholder="1500000" className={ic} />
+                            </FormField>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField label="Experience" hint="e.g. 2 or 2-5">
+                                <input name="experience" value={values.experience} onChange={handleChange} placeholder="2" className={ic} />
+                            </FormField>
+                            <FormField label="Location to Avoid">
+                                <input name="location" value={values.location} onChange={handleChange} placeholder="Delhi" className={ic} />
+                            </FormField>
+                        </div>
+
+                        <FormField label="Company to Avoid">
+                            <input name="company" value={values.company} onChange={handleChange} placeholder="XYZ Corp" className={ic} />
+                        </FormField>
+
+                        <div className="flex gap-3 mt-2">
+                            <button
+                                onClick={handleSave}
+                                disabled={!selectedUserId || status === "loading"}
+                                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {status === "loading" ? "Saving..." : "Save Preferences"}
+                            </button>
+                            <button onClick={reset}
+                                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">
+                                Reset
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
-
-            <div className="mb-3">
-
-                <label>
-                    Experience
-                </label>
-
-                <input
-                    className="form-control"
-                    value={experience}
-                    onChange={(e) =>
-                        setExperience(e.target.value)
-                    }
-                />
-
-            </div>
-
-            <div className="mb-3">
-
-                <label>Location To Avoid</label>
-
-                <input
-                    className="form-control"
-                    value={location}
-                    onChange={(e) =>
-                        setLocation(e.target.value)
-                    }
-                />
-
-            </div>
-
-            <div className="mb-3">
-
-                <label>Company To Avoid</label>
-
-                <input
-                    className="form-control"
-                    value={company}
-                    onChange={(e) =>
-                        setCompany(e.target.value)
-                    }
-                />
-
-            </div>
-
-            <div className="mb-3">
-
-                <label>Minimum Salary</label>
-
-                <input
-                    className="form-control"
-                    value={minSalary}
-                    onChange={(e) =>
-                        setMinSalary(e.target.value)
-                    }
-                />
-
-            </div>
-
-            <div className="mb-3">
-
-                <label>Maximum Salary</label>
-
-                <input
-                    className="form-control"
-                    value={maxSalary}
-                    onChange={(e) =>
-                        setMaxSalary(e.target.value)
-                    }
-                />
-
-            </div>
-
-            <div className="mb-3">
-
-                <label>Work Setup</label>
-
-                <select
-                    className="form-control"
-                    value={workSetup}
-                    onChange={(e) =>
-                        setWorkSetup(e.target.value)
-                    }
-                >
-
-                    <option value="REMOTE">
-                        Remote
-                    </option>
-
-                    <option value="HYBRID">
-                        Hybrid
-                    </option>
-
-                    <option value="ONSITE">
-                        Onsite
-                    </option>
-
-                </select>
-
-            </div>
-
-            <div className="mb-3">
-
-                <label>Employment Type</label>
-
-                <select
-                    className="form-control"
-                    value={employmentType}
-                    onChange={(e) =>
-                        setEmploymentType(e.target.value)
-                    }
-                >
-
-                    <option value="FULL_TIME">
-                        Full Time
-                    </option>
-
-                    <option value="PART_TIME">
-                        Part Time
-                    </option>
-
-                    <option value="INTERN">
-                        Intern
-                    </option>
-
-                    <option value="CONTRACT">
-                        Contract
-                    </option>
-
-                    <option value="FREELANCE">
-                        Freelance
-                    </option>
-
-                </select>
-
-            </div>
-
-            <button
-                className="btn btn-primary"
-                onClick={handleSave}
-            >
-                Save Preferences
-            </button>
-
         </div>
     );
 };

@@ -1,292 +1,144 @@
 import { useState } from "react";
+import useForm from "../hooks/useForm";
 import { createJob } from "../services/jobService";
+import FormField from "../components/FormField";
+
+const initial = {
+    title: "", companyName: "", yearsOfExperience: 0,
+    minSalary: 0, maxSalary: 0, skills: "", qualification: "",
+    workSetup: "hybrid", employmentType: "full_time",
+    country: "", state: "", city: "",
+};
+
+const ic = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none transition focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+
+const SectionTitle = ({ title }: { title: string }) => (
+    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 mt-2">{title}</p>
+);
 
 const CreateJob = () => {
-
-    const [title, setTitle] = useState("");
-    const [companyName, setCompanyName] = useState("");
-
-    const [yearOfExperience, setYearOfExperience] = useState(0);
-
-    const [minSalary, setMinSalary] = useState(0);
-    const [maxSalary, setMaxSalary] = useState(0);
-
-    const [skills, setSkills] = useState("");
-    const [qualification, setQualification] = useState("");
-
-    const [country, setCountry] = useState("");
-    const [state, setState] = useState("");
-    const [city, setCity] = useState("");
-
-    const [workSetup, setWorkSetup] = useState("hybrid");
-    const [employmentType, setEmploymentType] = useState("full_time");
+    const { values, handleChange, reset } = useForm(initial);
+    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
     const handleSubmit = async (e: React.FormEvent) => {
-
         e.preventDefault();
-
-        const job = {
-
-            title,
-            companyName,
-            yearOfExperience,
-            minSalary,
-            maxSalary,
-
-            jobDescription: {
-
-                skills: skills.split(",").map(s => s.trim()),
-
-                qualification: qualification
-                    .split(",")
-                    .map(q => q.trim()),
-
-                workSetup,
-
-                employmentType
-
-            },
-
-            location: {
-
-                country,
-                state,
-                city,
-
-                street: "",
-                pinCode: ""
-
-            }
-        };
-
+        setStatus("loading");
         try {
-
-            await createJob(job);
-
-            alert("Job Created Successfully");
-
-            setTitle("");
-            setCompanyName("");
-            setYearOfExperience(0);
-            setMinSalary(0);
-            setMaxSalary(0);
-
-            setSkills("");
-            setQualification("");
-
-            setCountry("");
-            setState("");
-            setCity("");
-
-            setWorkSetup("hybrid");
-            setEmploymentType("full_time");
-
-        } catch (error) {
-
-            console.error(error);
-            alert("Failed To Create Job");
-
+            await createJob({
+                title: values.title,
+                companyName: values.companyName,
+                yearsOfExperience: Number(values.yearsOfExperience),
+                minSalary: Number(values.minSalary),
+                maxSalary: Number(values.maxSalary),
+                jobDescription: {
+                    skills: values.skills.split(",").map(s => s.trim()).filter(Boolean),
+                    qualification: values.qualification.split(",").map(q => q.trim()).filter(Boolean),
+                    workSetup: values.workSetup,
+                    employmentType: values.employmentType,
+                },
+                location: { country: values.country, state: values.state, city: values.city },
+            });
+            setStatus("success");
+            reset();
+        } catch {
+            setStatus("error");
         }
     };
 
     return (
-        <div className="container mt-4">
+        <div className="max-w-2xl mx-auto px-6 py-10">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-slate-800">Create Job</h1>
+                <p className="text-slate-500 mt-1">Add a new job listing to the system</p>
+            </div>
 
-            <h2>Create Job</h2>
-
-            <form onSubmit={handleSubmit}>
-
-                <div className="mb-3">
-                    <label>Job Title</label>
-
-                    <input
-                        className="form-control"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                    />
+            {status === "success" && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 border border-green-200 text-sm">
+                    ✅ Job created successfully!
                 </div>
-
-                <div className="mb-3">
-                    <label>Company Name</label>
-
-                    <input
-                        className="form-control"
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                    />
+            )}
+            {status === "error" && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm">
+                    ❌ Failed to create job. Please try again.
                 </div>
+            )}
 
-                <div className="mb-3">
-                    <label>Experience (Years)</label>
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <form onSubmit={handleSubmit}>
 
-                    <input
-                        type="number"
-                        className="form-control"
-                        value={yearOfExperience}
-                        onChange={(e) =>
-                            setYearOfExperience(
-                                Number(e.target.value)
-                            )
-                        }
-                    />
-                </div>
+                    <SectionTitle title="Basic Info" />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField label="Job Title" required>
+                            <input name="title" value={values.title} onChange={handleChange} placeholder="e.g. Backend Engineer" className={ic} />
+                        </FormField>
+                        <FormField label="Company Name" required>
+                            <input name="companyName" value={values.companyName} onChange={handleChange} placeholder="e.g. Infosys" className={ic} />
+                        </FormField>
+                    </div>
 
-                <div className="mb-3">
-                    <label>Minimum Salary</label>
+                    <div className="grid grid-cols-3 gap-4">
+                        <FormField label="Experience (yrs)">
+                            <input type="number" name="yearsOfExperience" value={values.yearsOfExperience} onChange={handleChange} className={ic} />
+                        </FormField>
+                        <FormField label="Min Salary (₹)">
+                            <input type="number" name="minSalary" value={values.minSalary} onChange={handleChange} className={ic} />
+                        </FormField>
+                        <FormField label="Max Salary (₹)">
+                            <input type="number" name="maxSalary" value={values.maxSalary} onChange={handleChange} className={ic} />
+                        </FormField>
+                    </div>
 
-                    <input
-                        type="number"
-                        className="form-control"
-                        value={minSalary}
-                        onChange={(e) =>
-                            setMinSalary(Number(e.target.value))
-                        }
-                    />
-                </div>
+                    <hr className="border-slate-100 my-5" />
+                    <SectionTitle title="Job Description" />
 
-                <div className="mb-3">
-                    <label>Maximum Salary</label>
+                    <FormField label="Skills" hint="Comma-separated e.g. Java, Spring Boot, MySQL">
+                        <input name="skills" value={values.skills} onChange={handleChange} placeholder="Java, Spring Boot" className={ic} />
+                    </FormField>
+                    <FormField label="Qualifications" hint="Comma-separated e.g. B.Tech, MCA">
+                        <input name="qualification" value={values.qualification} onChange={handleChange} placeholder="B.Tech, MCA" className={ic} />
+                    </FormField>
 
-                    <input
-                        type="number"
-                        className="form-control"
-                        value={maxSalary}
-                        onChange={(e) =>
-                            setMaxSalary(Number(e.target.value))
-                        }
-                    />
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField label="Work Setup">
+                            <select name="workSetup" value={values.workSetup} onChange={handleChange} className={ic}>
+                                <option value="remote">Remote</option>
+                                <option value="hybrid">Hybrid</option>
+                                <option value="onsite">Onsite</option>
+                            </select>
+                        </FormField>
+                        <FormField label="Employment Type">
+                            <select name="employmentType" value={values.employmentType} onChange={handleChange} className={ic}>
+                                <option value="full_time">Full Time</option>
+                                <option value="part_time">Part Time</option>
+                                <option value="intern">Intern</option>
+                                <option value="contract">Contract</option>
+                                <option value="freelance">Freelance</option>
+                            </select>
+                        </FormField>
+                    </div>
 
-                <div className="mb-3">
-                    <label>Skills (comma separated)</label>
+                    <hr className="border-slate-100 my-5" />
+                    <SectionTitle title="Location" />
 
-                    <input
-                        className="form-control"
-                        placeholder="Java, Spring Boot, Hibernate"
-                        value={skills}
-                        onChange={(e) => setSkills(e.target.value)}
-                    />
-                </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <FormField label="Country">
+                            <input name="country" value={values.country} onChange={handleChange} placeholder="India" className={ic} />
+                        </FormField>
+                        <FormField label="State">
+                            <input name="state" value={values.state} onChange={handleChange} placeholder="Maharashtra" className={ic} />
+                        </FormField>
+                        <FormField label="City">
+                            <input name="city" value={values.city} onChange={handleChange} placeholder="Pune" className={ic} />
+                        </FormField>
+                    </div>
 
-                <div className="mb-3">
-                    <label>Qualifications</label>
+                    <button type="submit" disabled={status === "loading"}
+                            className="mt-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        {status === "loading" ? "Creating..." : "Create Job"}
+                    </button>
 
-                    <input
-                        className="form-control"
-                        placeholder="B.Tech, MCA"
-                        value={qualification}
-                        onChange={(e) =>
-                            setQualification(e.target.value)
-                        }
-                    />
-                </div>
-
-                <div className="mb-3">
-                    <label>Work Setup</label>
-
-                    <select
-                        className="form-control"
-                        value={workSetup}
-                        onChange={(e) =>
-                            setWorkSetup(e.target.value)
-                        }
-                    >
-                        <option value="remote">
-                            Remote
-                        </option>
-
-                        <option value="hybrid">
-                            Hybrid
-                        </option>
-
-                        <option value="onsite">
-                            Onsite
-                        </option>
-
-                    </select>
-                </div>
-
-                <div className="mb-3">
-                    <label>Employment Type</label>
-
-                    <select
-                        className="form-control"
-                        value={employmentType}
-                        onChange={(e) =>
-                            setEmploymentType(e.target.value)
-                        }
-                    >
-                        <option value="full_time">
-                            Full Time
-                        </option>
-
-                        <option value="part_time">
-                            Part Time
-                        </option>
-
-                        <option value="intern">
-                            Intern
-                        </option>
-
-                        <option value="contract">
-                            Contract
-                        </option>
-
-                        <option value="freelance">
-                            Freelance
-                        </option>
-                    </select>
-                </div>
-
-                <hr />
-
-                <h4>Location</h4>
-
-                <div className="mb-3">
-                    <label>Country</label>
-
-                    <input
-                        className="form-control"
-                        value={country}
-                        onChange={(e) =>
-                            setCountry(e.target.value)
-                        }
-                    />
-                </div>
-
-                <div className="mb-3">
-                    <label>State</label>
-
-                    <input
-                        className="form-control"
-                        value={state}
-                        onChange={(e) =>
-                            setState(e.target.value)
-                        }
-                    />
-                </div>
-
-                <div className="mb-3">
-                    <label>City</label>
-
-                    <input
-                        className="form-control"
-                        value={city}
-                        onChange={(e) =>
-                            setCity(e.target.value)
-                        }
-                    />
-                </div>
-
-                <button
-                    type="submit"
-                    className="btn btn-primary"
-                >
-                    Create Job
-                </button>
-
-            </form>
-
+                </form>
+            </div>
         </div>
     );
 };
